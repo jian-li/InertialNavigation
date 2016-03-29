@@ -1,0 +1,17 @@
+\documentclass{article}
+\usepackage{xeCJK}
+\setmainfont{KaiTi}
+
+\begin{document}
+\tableofcontents
+\section{基本概念介绍}
+22状态的EKF方法，da\_x, da\_y, da\_z表示在机体坐标系中测量得到的角速度测量值，由陀螺仪给出；dv\_x, dv\_y, dv\_z表示在机体坐标系中测量得到的加速度值，由加速度计给出；q0,q1,q2,q3表示机体坐标系相对于当地NED坐标系的四元数；vn,ve,vd表示在NED坐标系中速度；pn,pe,pd表示在NED坐标系中的位置；dax\_b, day\_b, daz\_b表示角速度的漂移量；dvz\_b表示重力加速度漂移；gn,ge,gd表示重力加速度在ned坐标系中的分量；daxcov,daycov,dazcov,dvxcov,dvycov,dvzcov表示对应的协方差；vwn, vwe表示NE的风速，
+\section{EKF}
+EKF的状态变量为$$s=\{q0; q1; q2; q3; vn; ve; vd; pn; pe; pd; dax\_b; day\_b; daz\_b; dvx\_b; dvy\_b; dvz\_b; vwn; vwe; magN; magE; magD; magX; magY; magZ\}$$,各个变量的含义为。
+EKF更新方程为：
+为了简单期间，将[q0, q1, q2, q3]记为q; [vn, ve, vd]记为v; [pn, pe, pd]记为p; [dax\_b, day\_b, daz\_b]记为da\_b，[dvx\_b, dvy\_b, dvz\_b]记为dv\_b，[vwn, vwe]记为vw; [magN, magE, magD]记为magNED; [magX, magY, magZ]记为magXYZ。
+四元数更新方程：
+
+
+\end{document}
+

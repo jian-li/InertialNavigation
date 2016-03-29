@@ -1,6 +1,10 @@
 
 CXX?=g++
 EXTRAARGS?=
+
+#qt related tools
+UIC ?= uic
+
 CFLAGS=-I. -D__EXPORT="" -Dnullptr="0" -g -fno-strict-aliasing \
 			   -fno-strength-reduce \
 			   -fomit-frame-pointer \
@@ -22,6 +26,7 @@ ODIR=./obj
 LDIR =../lib
 SRCDIR = ./src
 INCLUDEDIR =./include
+DOCDIR = ./doc
 LIBS=-lm
 BINDIR = ./bin
 
@@ -32,6 +37,9 @@ BINDIR = ./bin
 
 _OBJ = main_closed_loop_float.o estimator_22states.o estimator_utilities.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+
+all: ${BINDIR}/estimator_closed_loop_test visualizer
+
 
 #$(DEPS)
 $(ODIR)/%.o: ${SRCDIR}/%.cpp
@@ -50,7 +58,18 @@ ${BINDIR}/estimator_closed_loop_test: $(OBJ)
 	$(CXX) -g -o $@ $^ $(CFLAGS) $(LIBS) $(EXTRAARGS)
 	rm -r ${ODIR}
 
-.PHONY: clean plots
+
+#qt based visualizer files
+visualizer: 
+#convert the ui file to .h file
+	
+%.h:%.ui
+	${UIC} -o $@ $^
+
+
+	
+
+.PHONY: clean plots doc
 
 clean:
 	rm -f *~ core $(INCDIR)/*~ 
@@ -79,3 +98,11 @@ tests:
 #export EXTRAARGS=""
 	make clean
 	./validate_output.py
+
+doc:
+	if [ -d "${DOCDIR}"]; then\
+		rm -r "${DOCDIR}";\
+	fi
+	mkdir -p ${DOCDIR}
+	cd ${DOCDIR}
+	xelatex thesis/thesis.tex

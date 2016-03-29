@@ -52,8 +52,6 @@ public:
     AttPosEKF();
     ~AttPosEKF();
 
-
-
     /* ##############################################
      *
      *   M A I N    F I L T E R    P A R A M E T E R S

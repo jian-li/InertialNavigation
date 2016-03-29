@@ -1,0 +1,218 @@
+\documentclass{article}
+\usepackage{xeCJK}
+\setmainfont{KaiTi}
+
+\begin{document}
+\tableofcontents
+\newpage 
+
+\section{基本概念介绍}
+22状态的EKF方法，da\_x, da\_y, da\_z表示在机体坐标系中测量得到的角速度测量值，由陀螺仪给出；dv\_x, dv\_y, dv\_z表示在机体坐标系中测量得到的加速度值，由加速度计给出；q0,q1,q2,q3表示机体坐标系相对于当地NED坐标系的四元数；vn,ve,vd表示在NED坐标系中速度；pn,pe,pd表示在NED坐标系中的位置；dax\_b, day\_b, daz\_b表示角速度的漂移量；dvz\_b表示重力加速度漂移；gn,ge,gd表示重力加速度在ned坐标系中的分量；daxcov,daycov,dazcov,dvxcov,dvycov,dvzcov表示对应的协方差；vwn, vwe表示NE的风速，
+
+\section{$EKF$基本原理}
+\subsection{EKF基本方程}
+扩展卡尔曼滤波的状态方程和观测方程如下式所示：
+\begin{equation}
+\left\{
+\begin{array}{l}
+	 x_{k+1} = f(x_k, u_k, w_k)  \\
+	 z_k = h(x_k, v_k)
+\end{array}
+\right.
+\label{eq:kal_equation}
+\end{equation}
+
+$EKF$的状态变量为$x=[q; v_n; p_n; da_b; dv_b; vw; m_n; m_b]$,其中$q=[q_0, q_1, q_2, q_3]$为机体坐标系$i$系到导航坐标系$n$系的四元数；$v_n$表示导航坐标系$n$系中的速度；$p_n$表示导航坐标系$n$系中的位置；$vw$表示导航坐标系$n$系中的$n,e$方向上的风速$vw=[vwn, vwe]$；$m_n$表示在导航坐标系$n$系中的磁场；$m_b$表示在机体坐标系$b$系中的磁场。
+
+$EKF$的测量向量为$z=[v_n, p_n，vw, m_b,w_o, d_r]$，其中$v_n$为在导航坐标系下的速度$v_n=[v_n, v_e, v_d]$，$p_n$为在导航坐标系下的位置$p_n=[p_n, p_e, p_d]$,$v_n, p_n$由GPS的给出；$vw$为空速，由空速管给出；$m_b$为磁场强度，由磁罗盘给出；$w_o$为下视光溜传感器给出的$xy$方向上的的角速度；$d_r$为超声波模块给出的距离。
+
+$EKF$的输入向量$u_k$为$\delta v, \delta \theta $，表示$IMU$测得的加速度和角速度，
+
+在公式(\ref{eq:kal_equation})中，显然我们不知道每一个时刻噪声$w_k$和$v_k$的值。但是我们可以将它们假设为0，从而估计状态向量和观测向量为
+\begin{equation}
+	\left\{
+	\begin{array}{l}
+	\tilde{x}_{k+1} = f(\hat{x}_k , u_{k}, 0) \\
+	\tilde{z}_k = h(\tilde{x}_k, 0)
+	\end{array}
+	\right.
+	\label{eq:approx_equation}
+\end{equation}
+
+为了估计(\ref{eq:approx_equation})，首先将(\ref{eq:approx_equation})进行线性化表示：
+\begin{equation}
+	\left\{
+	\begin{array}{c}
+	x_k \approx \tilde{x}_k + A(x_{k-1} - \hat{x}_{k-1}) + Ww_{k-1} \\
+	z_k \approx \tilde{z}_k + H(x_k - \hat{x}_k) + Vv_k
+	\end{array}
+	\right.
+	\label{eq:discrite_equation}
+\end{equation}
+
+在公式(\ref{eq:discrite_equation})中， $x_k$和$z_k$为状态向量和观测向量的真值，$\tilde{x}_k$和$\tilde{z}_k$来自(\ref{eq:approx_equation})，表示状态向量和观测向量的估计值，$\hat{x}_k$表示$k$时刻状态向量的后验估计，随机向量$w_k$和$v_k$表示过程噪声和观测噪声；$A$表示$f$对$x$的偏导的雅可比矩阵：
+$$A_{[i,j]}=\frac{\partial f_{[i]}}{\partial x_{[j]}}(\hat{x}_k,u_k,0)$$
+$W$是$f$对$w$的偏导的雅可比矩阵：
+$$W_{[i,j]}=\frac{\partial f_{[i]}}{\partial w_{[j]}}(\hat{x}_k,u_k,0)$$
+$H$是$h$对$x$的偏导的雅可比矩阵：
+$$H_{[i,j]}=\frac{\partial h_{[i]}}{\partial x_{[j]}}(\tilde{x}_k,0)$$
+$V$是$h$对$v$的偏导的雅可比矩阵：
+$$V_{[i,j]}=\frac{\partial h_{[i]}}{\partial v_{[j]}}(\tilde{x}_k,0)$$
+\subsection{EKF更新方程}
+$EK$F更新方程依次为：
+
+四元数更新方程：
+\begin{equation}
+\left\{
+\begin{array}{c}
+	q_{k+1} = q_k * \Delta_q \\
+	\Delta_q = 
+	\left[
+	\begin{array}{c}
+	1 \\
+	0.5 *\delta \theta_{xc} \\
+	0.5 *\delta \theta_{yc} \\
+	0.5 *\delta \theta_{zc}
+	\end{array}
+	\right] \\
+	\delta \theta_c = \delta \theta - \delta \theta_b 
+	
+\end{array}
+\right.
+\label{eq:quaterion_update}
+\end{equation}
+公式(\ref{eq:quaterion_update})中$\delta\theta$表示陀螺仪测得的角度变化，$\delta\theta_b$表示陀螺仪漂移量的估计值。
+
+速度更新方程：
+\begin{equation}
+	v_{k+1} = v_k + g * dt + R_{b}^{n}(\delta v - \delta v_b)
+	\label{eq:vel_update}
+\end{equation}
+公式(\ref{eq:vel_update})中$\delta v$表示加速度计测得的加速度，$\delta v_b$表示估计的加速度漂移值，由于加速度测量的为比力，所以需要加上重力加速度。
+
+位置更新方程：
+\begin{equation}
+	p_{k+1} = p_k + v_k * dt
+	\label{eq:position_updata}
+\end{equation}
+公式(\ref{eq:position_updata})中$v_k$表示当前时刻的速度值，$dt$为更新的时间间隔。
+
+$IMU$偏移更新方程：
+\begin{equation}
+	\delta v_b^{k+1} = 
+	\delta v_b^k
+\end{equation}
+
+\begin{equation}
+	dv^b_{k+1} = dvz_k
+\end{equation}
+
+地磁更新方程：
+\begin{equation}
+	m_n^{k+1} = m_n^k
+\end{equation}
+
+机体磁更新方程：
+\begin{equation}
+	m_b^{k+1} = m_b^k 
+\end{equation}
+
+\subsection{更新方程各个变量求解}
+预测误差和观测变量的残差的表达式为
+\begin{equation}
+	\left\{
+	\begin{array}{l}
+	\tilde{e}_{x_k} = x_k - \tilde{x}_k \\
+	\tilde{e}_{z_k} = z_k - \tilde{z}_k
+	\end{array}
+	\right.
+	\label{eq:predict_error}
+\end{equation}
+公式中(\ref{eq:predict_error})上面的式子中$x_k$为状态变量的真实值，是无法准确知道的，是我们需要估计的对象。同样，在下面的式子中$z_k$为观测变量的真实值，也是无法准确知道的。结合公式(\ref{eq:discrite_equation})和公式(\ref{eq:predict_error})，可以得到公式(\ref{eq:error_equation})。
+
+\begin{equation}
+	\left\{
+	\begin{array}{l}
+	\tilde{e}_{x_k} \approx A(x_{k-1} - \hat{x}_{k-1}) + \epsilon_k \\
+	\tilde{e}_{z_k} \approx H\tilde{e}_{x_k} + \eta_k
+	\end{array}
+	\right.
+	\label{eq:error_equation}
+\end{equation}
+在公式(\ref{eq:error_equation})中，$\epsilon_k$和$\eta_k$分别代表具有零均值和协方差矩阵为$WQW^{T}$和$VRV^{T}$的独立随机变量。
+
+扩展卡尔曼滤波器时间更新方程：
+\begin{equation}
+\left\{
+\begin{array}{l}
+	\hat{x}_k^- = f(\hat{x}_{k-1}, u_{k-1}, 0) \\
+	P_k^- = A_kP_{k-1}A_k^T +W_k Q_{k-1}W_k^T
+\end{array}
+\right.
+\label{eq:time_update}
+\end{equation}
+公式(\ref{eq:time_update})中的第一个方程中$\hat{x}_{k-1}$表示先验的值，也即上一次后验估计值,$\hat{x}_k^-$为先验的预测值，即根据上一次后验估计值预测得到的值。$P_k^-$为先验估计值$\hat{x}_k^-$的协方差。
+\begin{equation}
+	Q = 
+	\left[
+	\begin{array}{cccccc}
+	\sigma_{da^x} & 0 & 0 & 0 & 0 & 0 \\
+	0 & \sigma_{da^y} & 0 & 0 & 0 & 0 \\
+	0 & 0 & \sigma_{da^z} & 0 & 0 & 0 \\
+	0 & 0 & 0 & \sigma_{dv^x} & 0 & 0 \\
+	0 & 0 & 0 & 0 & \sigma_{dv^y} & 0 \\
+	0 & 0 & 0 & 0 & 0 & \sigma_{dv^z} 
+	\end{array}
+	\right]
+\end{equation}
+
+\begin{equation}
+	WQW
+\end{equation}
+
+\subsection{EKF观测方程}
+$NED$坐标系$GPS$观测方程：
+\begin{equation}
+\left\{
+\begin{array}{l}
+z_1 = v_k \\
+z_2 = p_k
+\end{array}
+\right.
+\end{equation}
+
+$NED$坐标系空速观测方程：
+\begin{equation}
+z_3 = vw
+\end{equation}
+
+$b$系磁场观测方程：
+\begin{equation}
+	z_4 = m_b
+\end{equation}
+
+光流传感器观测方程：
+
+
+超声波高度观测方程：
+\begin{equation}
+	z_5 = p_z
+\end{equation}
+
+\subsection{$EKF$测量更新方程}
+卡尔曼增益计算公式：
+\begin{equation}
+	K_k = P_k^- H_k^T (H_k P_k^- H_k^T + V_k R_k^- V_k^T)^{-1}
+\end{equation}
+
+由观测变量$z_k$进行更新：
+\begin{equation}
+	\hat{x}_k = \hat{x}_k^- + K_k(z_k - h(\hat{x}_k^-,0))
+\end{equation}
+
+更新协方差矩阵：
+\begin{equation}
+	P_k=(I-K_k H_k)P_k^-
+\end{equation}
+\end{document}
+
